@@ -1,4 +1,4 @@
-# Jenkins-slaves-windows-bootstrap
+﻿# Jenkins-slaves-windows-bootstrap
 Script for fast installation of Windows Jenkins Slaves
 
 Tested with Windows 2003 / 2008 / 2012 / Seven
@@ -24,4 +24,3 @@ SET SLAVE_HOME=D:\DEV\%SLAVE_FOLDER% (Root folder full PATH for Slave)
 SET LOCAL_TOOLS=D:\sApps (Root PATH for local tooling) 
 SET ERRORLOG=D:\DEV\slave_setup.log (Log installation file for errors)
 SET SERVICE_NAME="jenkins_slave" (Name of windows service for Jenkins slave)
-
