@@ -3,7 +3,7 @@ cls
 REM ---------------------------------------------------------------------------------------------------------------
 REM ICS\ALM : Automatic Installation Slave Jenkins x86 - Win7-64 bits
 REM For New HCIS Platform
-REM V1.0 - Frederic Meyrou
+REM V1.1 - Frederic Meyrou
 REM ---------------------------------------------------------------------------------------------------------------
 REM Mandatory pre-requisites : D:\ Drive
 REM Mandatory pre-requisites : Slave already created on MASTER as JNLP using hostname of slave, installation on D:\DEV\CI
@@ -248,7 +248,7 @@ rem -- set user bob and depdancy as Server service (make sure we have network!)
 call :inputbox "Please enter your Windows password : " "Jenkins service configuration"
 sc config %SERVICE_NAME% start= auto obj= "%USERDOMAIN%\%USERNAME%" password= "%input%" depend= LanmanServer
 rem -- set restart service configuration in case of problem (reset time = 1day) (Restart = 1mn/5mn Reboot = 1h)
-sc failure %SERVICE_NAME% reset= 43200 reboot= "Jenkins slave has crashed, restarting the server" actions= restart/60/restart/300/reboot/3600
+sc failure %SERVICE_NAME% reset= 43200 actions= restart/60/restart/300/restart/3600
 
 REM echo ... Add bob to Admin group
 REM net localgroup Administrators BE\bob /add 2> NUL
