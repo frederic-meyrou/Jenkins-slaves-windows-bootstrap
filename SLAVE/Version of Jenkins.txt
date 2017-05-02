@@ -1,1 +1,4 @@
-Please Update tjoses binaries with Master version of Jenkins
+Please Update thoses binaries with Master version of Jenkins
+Current version is LTS Jenkins ver. 2.32.3
+
+http://wikihealthcare.agfa.net/display/ICSRDSALM/How+to+update+the+content+of+Jenkins+tooling

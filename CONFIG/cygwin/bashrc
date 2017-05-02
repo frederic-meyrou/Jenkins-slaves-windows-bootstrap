@@ -1,0 +1,6 @@
+alias h='history'
+alias du='du -kh'    # Makes a more readable output.
+alias df='df -kTh'
+alias more='less'
+
+PS1='\[\033[02;32m\]\u@\H:\[\033[02;34m\]\w\$\[\033[00m\] '

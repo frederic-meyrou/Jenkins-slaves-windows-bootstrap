@@ -1,25 +1,24 @@
 @echo off
-TITLE Automatic Installation Slave Jenkins for Windows 2003
+TITLE Automatic Installation Slave Jenkins for Windows 2008/2012
 REM ---------------------------------------------------------------------------------------------------------------
-REM ICS\ALM : Automatic Installation Slave Jenkins x86 - W2K3-32 bits
+REM ICS\ALM : Automatic Installation Slave Jenkins x86 - W2K8/12-64 bits
 REM For New HCIS Platform
-REM V1.3 - Frederic Meyrou
+REM V1.1 - Frederic Meyrou
 REM ---------------------------------------------------------------------------------------------------------------
 
 REM ---------------------------------------------------------------------------------------------------------------
 REM  Check time service
-REM MOD for Win2003 W32tm do not have same options
 REM ---------------------------------------------------------------------------------------------------------------
 
 echo ... Check NTP service
-REM W32tm /query /status >> %ERRORLOG%
-REM IF NOT %ERRORLEVEL% == 0 (
-REM   echo ... WARNING! NTP time service is not configured, please contact ICS\ALM for further assistance.
-REM   echo ... WARNING! NTP time service is not configured, please contact ICS\ALM for further assistance. >> %ERRORLOG% 
-REM   pause
-REM   popd
-REM  exit 1
-REM )
+W32tm /query /status >> %ERRORLOG%
+IF NOT %ERRORLEVEL% == 0 (
+  echo ... WARNING! NTP time service is not configured, please contact ICS\ALM for further assistance.
+  echo ... WARNING! NTP time service is not configured, please contact ICS\ALM for further assistance. >> %ERRORLOG% 
+  pause
+  popd
+  exit 1
+)
 
 reg query HKLM\SYSTEM\CurrentControlSet\Services\W32Time\Parameters | findstr /I "%NTP_SERVER%" >> %ERRORLOG% 2>>&1
 IF %ERRORLEVEL% == 1 reg add "HKLM\SYSTEM\CurrentControlSet\Services\W32Time\Parameters" /v NtpServer /t REG_SZ /d %NTP_SERVER% /f 2>> %ERRORLOG%
@@ -53,23 +52,20 @@ sc stop %SERVICE_NAME% > NUL 2>&1
 
 REM ---------------------------------------------------------------------------------------------------------------
 REM  Install Java and Git 
-REM MOD for Win2003 = 32 bits
 REM ---------------------------------------------------------------------------------------------------------------
 
 echo ... Install/Update Java JDK and mSysGit
 :JAVA
 echo ... Install Java JDK 1.8
 IF NOT EXIST %LOCAL_TOOLS%\JDK1.8 MKDIR %LOCAL_TOOLS%\JDK1.8\ 2> NUL
-XCOPY /E/I/Q/H/K/Y %MASTER_DRIVE%\INSTALL\jdk-8u92-windows-x32\*.* %LOCAL_TOOLS%\JDK1.8\  
+XCOPY /E/I/Q/H/K/Y %MASTER_DRIVE%\INSTALL\jdk-8u92-windows-x64\*.* %LOCAL_TOOLS%\JDK1.8\
 SET JAVA_HOME=%LOCAL_TOOLS%\JDK1.8
-rem PATH %LOCAL_TOOLS%\JDK1.8\bin;%PATH%
-CALL %MASTER_DRIVE%\BIN\pathmgr.cmd /add /system %LOCAL_TOOLS%\JDK1.8\bin /v /y
+PATH %LOCAL_TOOLS%\JDK1.8\bin;%PATH%
 
 where java >> %ERRORLOG% 2>>&1
-%LOCAL_TOOLS%\JDK1.8\bin\java -version >> %ERRORLOG% 2>>&1
 IF %ERRORLEVEL% == 1 (
-  echo ... WARNING! Java %LOCAL_TOOLS%\JDK1.8 is not installed, please contact ICS\ALM for further assistance.
-  echo ... WARNING! Java %LOCAL_TOOLS%\JDK1.8 is not installed, please contact ICS\ALM for further assistance. >> %ERRORLOG%
+  echo ... WARNING! Java is not installed, please contact ICS\ALM for further assistance.
+  echo ... WARNING! Java is not installed, please contact ICS\ALM for further assistance. >> %ERRORLOG%
   pause
   popd
   exit 1
@@ -77,7 +73,7 @@ IF %ERRORLEVEL% == 1 (
 
 echo ... Setup Java security
 mkdir %WINDIR%\Sun\Java\Deployment 2> NUL
-XCOPY /E/I/Q/H/K/Y %MASTER_DRIVE%\CONFIG\java-config\*.* %WINDIR%\Sun\Java\Deployment 
+XCOPY /E/I/Q/H/K/Y %MASTER_DRIVE%\CONFIG\java-config\*.* %WINDIR%\Sun\Java\Deployment
 
 :GIT
 echo ... Install mSysGit
@@ -85,10 +81,9 @@ REM -- Setup LOCAL_TOOLS Path in configuration file
 XCOPY /Q/Y %MASTER_DRIVE%\CONFIG\git\Git.conf %LOCAL_TOOLS%
 cscript /nologo %MASTER_DRIVE%\BIN\replace.vbs "%LOCAL_TOOLS%\Git.conf" "@LOCALTOOLS@" "%LOCAL_TOOLS%" >> %ERRORLOG% 2>>&1
 REM -- Start Silent install
-%MASTER_DRIVE%\INSTALL\Git-2.9.2-32-bit.exe /SILENT /SUPPRESSMSGBOXES /NORESTART /NORESTARTAPPLICATIONS /NOCLOSEAPPLICATIONS /LOADINF=%LOCAL_TOOLS%\Git.conf  2>> %ERRORLOG%
+%MASTER_DRIVE%\INSTALL\Git-2.6.3-64-bit.exe /SILENT /SUPPRESSMSGBOXES /NORESTART /NORESTARTAPPLICATIONS /NOCLOSEAPPLICATIONS /LOADINF=%LOCAL_TOOLS%\Git.conf  2>> %ERRORLOG%
 echo %ERRORLEVEL% >> %ERRORLOG%
-rem PATH %LOCAL_TOOLS%\Git-2.9.2\bin;%PATH%
-CALL %MASTER_DRIVE%\BIN\pathmgr.cmd /add /system %LOCAL_TOOLS%\Git-2.9.2\bin /v /y
+PATH %LOCAL_TOOLS%\Git-2.6.3\bin;%PATH%
 
 where git >> %ERRORLOG% 2>>&1
 IF %ERRORLEVEL% == 1 (
@@ -105,8 +100,7 @@ REM ----------------------------------------------------------------------------
 
 echo ... Install/Update SVN Client
 :SVN
-%MASTER_DRIVE%\INSTALL\CollabNetSubversion-client-1.8.14-1-Win32.exe /S /Answerfile=%MASTER_DRIVE%\CONFIG\svn\collabnetSVN.conf /D=%LOCAL_TOOLS%\SVN_1.8 2>> %ERRORLOG%
-CALL %MASTER_DRIVE%\BIN\pathmgr.cmd /add /system %LOCAL_TOOLS%\SVN_1.8 /v /y
+%MASTER_DRIVE%\INSTALL\CollabNetSubversion-client-1.8.14-1-x64.exe /S /Answerfile=%MASTER_DRIVE%\CONFIG\svn\collabnetSVN.conf /D=%LOCAL_TOOLS%\SVN_1.8 2>> %ERRORLOG%
 
 REM ---------------------------------------------------------------------------------------------------------------
 REM  Install FireFox client 
@@ -118,38 +112,17 @@ cscript /nologo %MASTER_DRIVE%\BIN\replace.vbs "%LOCAL_TOOLS%\firefox.ini" "@LOC
 %MASTER_DRIVE%\INSTALL\"Firefox Setup 45.0.1.exe" /INI="%LOCAL_TOOLS%\firefox.ini" >> %ERRORLOG% 2>>&1
 
 REM ---------------------------------------------------------------------------------------------------------------
-REM  Install Chrome 
-REM ---------------------------------------------------------------------------------------------------------------
-
-echo ... Install Chrome for GUI testing
-start /wait MSIEXEC.EXE /package %MASTER_DRIVE%\INSTALL\googlechromestandaloneenterprise.msi /qn >> %ERRORLOG% 2>>&1
-
-REM ---------------------------------------------------------------------------------------------------------------
 REM  Use GIT to Deploy JENKINS Client and Tooling
 REM ---------------------------------------------------------------------------------------------------------------
 
 REM -- Clone GIT Slave Repo or Pull it
 cd /D D:\DEV
-IF EXIST %SLAVE_FOLDER% IF NOT EXIST %SLAVE_FOLDER%\.git IF EXIST %SLAVE_FOLDER%\WS (
-  echo ... Install Jenkins Slave Tooling
-  echo WARNING : Can't install the Slave tooling, the Git repo is missing and a Worspace is already setup. 
-  echo           Please move/save the Worskspace manually, delete %SLAVE_FOLDER% and restart installation. 
-  echo WARNING : Can't install the Slave tooling, the Git repo is missing and a Worspace is already setup. >> %ERRORLOG%
-  echo           Please move/save the Worskspace manually, delete %SLAVE_FOLDER% and restart installation. >> %ERRORLOG%
-  pause
-  popd
-  exit 1  
-)
-IF EXIST %SLAVE_FOLDER% IF NOT EXIST %SLAVE_FOLDER%\.git (
-  echo ... Clean Slave %SLAVE_FOLDER% folder
-  DEL /S/Q  %SLAVE_FOLDER%
+IF EXIST %SLAVE_FOLDER% (
+  IF NOT EXIST %SLAVE_FOLDER%\.git DEL /S/Q  %SLAVE_FOLDER%
 )
 IF NOT EXIST %SLAVE_FOLDER% (
   echo ... Install Jenkins Slave Tools from Git Repo
-  REM git config http.postBuffer 524288000 2>> %ERRORLOG%
-  git clone --progress --depth 1 %GIT_REPO% %SLAVE_FOLDER%
-  SET GITERROR=%ERRORLEVEL%
-  echo ErrorLevel Git = !GITERROR!%GITERROR% >> %ERRORLOG%
+  git clone --depth 1 %GIT_REPO% %SLAVE_FOLDER% 2>> %ERRORLOG%
 ) ELSE (
   echo ... Update Jenkins Slave Tools from Git Repo
   cd /D %SLAVE_HOME%
@@ -157,23 +130,12 @@ IF NOT EXIST %SLAVE_FOLDER% (
   git status 2>> %ERRORLOG%
   git reset --hard HEAD 2>> %ERRORLOG%
   git clean -f -d 2>> %ERRORLOG%
-  git pull
-  SET GITERROR=%ERRORLEVEL%
-  echo ErrorLevel Git = !GITERROR!%GITERROR% >> %ERRORLOG%
+  git pull 2>> %ERRORLOG%
   echo ... Updated!  
-)
-IF NOT !GITERROR! == 0 (
-  echo WARNING : Can't install the Slave tooling, Git returned an error code !GITERROR!. >> %ERRORLOG%
-  echo WARNING : Can't install the Slave tooling, Git returned an error code !GITERROR!.
-  echo           Please check the log file %ERRORLOG%.
-  pause
-  popd
-  exit 1  
 )
 
 REM ---------------------------------------------------------------------------------------------------------------
 REM  Uninstall old JENKINS Service
-REM MOD for Win2003 can't redirect timeout output
 REM ---------------------------------------------------------------------------------------------------------------
 
 :JENKINS
@@ -182,8 +144,8 @@ REM -- Check Jenkins service exist (We only uninstall the same service)
 sc queryex type= service state= all | findstr "SERVICE_NAME" | findstr /I "jenkins" > NUL 2>&1
 IF %ERRORLEVEL% == 0 (
   echo ... Remove old service!
-  SC delete %SERVICE_NAME% >> %ERRORLOG% 
-  timeout 2
+  SC delete %SERVICE_NAME% > NUL 2>> %ERRORLOG% 
+  timeout 2 > NUL 
 )
 
 REM -- Check if a Jenkins process is still running
@@ -229,4 +191,5 @@ REM -- Start new service
 echo ... Start Jenkins service
 %SLAVE_HOME%\jenkins-slave.exe start  2>> %ERRORLOG%
 
+REM EOF
 REM ---------------------------------------------------------------------------------------------------------------

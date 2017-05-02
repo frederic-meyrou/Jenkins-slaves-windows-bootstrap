@@ -4,13 +4,13 @@ TITLE Automatic Installation Slave Jenkins
 REM ---------------------------------------------------------------------------------------------------------------
 REM ICS\ALM : Automatic Installation Slave Jenkins Windows x86 - Launcher
 REM For New HCIS Platform
-REM V1.7 - Frederic Meyrou
+REM V1.6 - Frederic Meyrou
 REM ---------------------------------------------------------------------------------------------------------------
 REM Mandatory pre-requisites : D:\ Drive
 REM Mandatory pre-requisites : Slave already created on MASTER as JNLP using hostname of slave, installation on D:\DEV\CI
 REM ---------------------------------------------------------------------------------------------------------------
 REM Known problem : ClearCase need a separate Client installation
-REM                 MsBuild need additional Microsoft runtime installations
+REM                 MsBuild   need additional Microsoft runtime installations
 REM In case of problems with runas credential, use "rundll32.exe keymgr.dll, KRShowKeyMgr" to remove a faulty credential  
 REM ---------------------------------------------------------------------------------------------------------------
 
@@ -23,6 +23,7 @@ IF NOT EXIST %~dp0\env.cmd (
 CALL %~dp0\env.cmd
 
 SET MASTER_SHARE=\\%MASTER%\SLAVE-BOOTSTRAP\
+SET MASTER_ROOT=D:\JENKINS
 SET GIT_REPO=http://gitbucket-hcis.agfahealthcare.com/git/Jenkins/Slave-Tooling.git
 SET SLAVE_NAME=%COMPUTERNAME%
 SET SLAVE_FOLDER=CI
@@ -138,49 +139,12 @@ REM ----------------------------------------------------------------------------
 CALL %MASTER_DRIVE%\BIN\pathmgr.cmd /clean /system /v /y
 
 REM ---------------------------------------------------------------------------------------------------------------
-REM  Call Sub script according to OS version
+REM  Install Chrome 
 REM ---------------------------------------------------------------------------------------------------------------
 
-IF "%SLAVE_OS%"=="NONE" ( 
-  wmic os get Caption /value
-  echo ... WARNING! This operation system is not supported. please contact ICS\ALM for further assistance.
-  echo ... WARNING! This operation system is not supported. please contact ICS\ALM for further assistance. >> %ERRORLOG%
-  pause
-  popd
-  exit 1
-)
+echo ... Install Chrome for GUI testing
+start /wait MSIEXEC.EXE /package %MASTER_DRIVE%\INSTALL\googlechromestandaloneenterprise.msi /qn >> %ERRORLOG% 2>>&1
 
-IF "%JENKINS_HOME%"=="%MASTER_ROOT%" (
-  echo ... Setup Master
-  CALL %MASTER_DRIVE%\BIN\install-master.cmd  
-) ELSE (
-  echo ... Slave OS = %SLAVE_OS%
-  CALL %MASTER_DRIVE%\BIN\install-%SLAVE_OS%.cmd
-)
-
-REM ---------------------------------------------------------------------------------------------------------------
-REM  Call Sub script as bob for user configuration
-REM ---------------------------------------------------------------------------------------------------------------
-
-echo ... User configuration for %USERNAME% (%SLAVE_OS%)
-
-REM -- MOD for Seven
-IF "%SLAVE_OS%"=="win7" (
-  echo ... Case Seven 
-  %MASTER_DRIVE%\BIN\setup-user.cmd
-  GOTO USERLOG  
-)
-
-RUNAS /USER:%SLAVE_USER% /SAVECRED "%MASTER_SHARE%BIN\setup-user.cmd"
-REM -- Sleep for 15 Sec
-ping 127.0.0.1 -n 15 > NUL
-
-:USERLOG
-IF EXIST %SETUPUSERLOG% (
-  TYPE %SETUPUSERLOG%
-) ELSE (
-  echo WARNING! ... Echo can't find LOG file!
-)
 
 REM ---------------------------------------------------------------------------------------------------------------
 REM  END

@@ -1,0 +1,4 @@
+<clearcase-settings>
+    <useVWSParameter>false</useVWSParameter>
+	<clearcaseType>UCM</clearcaseType>
+</clearcase-settings>

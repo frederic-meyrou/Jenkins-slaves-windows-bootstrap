@@ -1,44 +1,13 @@
 @echo off
-cls
+TITLE Automatic Installation Slave Jenkins for Windows Seven
 REM ---------------------------------------------------------------------------------------------------------------
 REM ICS\ALM : Automatic Installation Slave Jenkins x86 - Win7-64 bits
 REM For New HCIS Platform
-REM V1.1 - Frederic Meyrou
-REM ---------------------------------------------------------------------------------------------------------------
-REM Mandatory pre-requisites : D:\ Drive
-REM Mandatory pre-requisites : Slave already created on MASTER as JNLP using hostname of slave, installation on D:\DEV\CI
+REM V1.6 - Frederic Meyrou
 REM ---------------------------------------------------------------------------------------------------------------
 REM Known problem : Problem with Master share case sensitive
 REM                 BOB Do not Work on Workstation -> Use local user name instead
 REM ---------------------------------------------------------------------------------------------------------------
-
-SET MASTER=jenkins-hcis-test.agfahealthcare.com
-SET MASTER_SHARE=\\%MASTER%\SLAVE-BOOTSTRAP\
-SET GIT_REPO=http://gitbucket-hcis.agfahealthcare.com/git/Jenkins/Slave-Common.git
-SET SLAVE_NAME=%COMPUTERNAME%
-SET SLAVE_FOLDER=CI
-SET SLAVE_HOME=D:\DEV\%SLAVE_FOLDER%
-SET LOCAL_TOOLS=D:\TOOLS
-SET ERRORLOG=D:\DEV\slave_setup.log
-SET SERVICE_NAME="jenkins_slave"
-
-REM ---------------------------------------------------------------------------------------------------------------
-REM  Establish temporary Drive with Remote Share
-REM ---------------------------------------------------------------------------------------------------------------
-
-setlocal enableextensions
-setlocal enabledelayedexpansion
-
-pushd %~dp0
-SET SHARE=%~dp0
-SET MASTER_DRIVE=%CD%
-
-IF NOT %MASTER_SHARE%==%SHARE% (
-  echo ... WARNING! Run this script from %MASTER_SHARE% ONLY! You are currently on %SHARE% ...
-  pause
-  popd
-  exit 1
-)
 
 REM ---------------------------------------------------------------------------------------------------------------
 REM  Check User is Admin 
@@ -51,38 +20,6 @@ IF %ERRORLEVEL% == 1 (
  pause 
  popd
  exit 1
-)
-
-REM ---------------------------------------------------------------------------------------------------------------
-REM  Check Folders
-REM ---------------------------------------------------------------------------------------------------------------
-
-REM -- Test if Drive D exist
-IF NOT EXIST D:\ (
- echo WARNING! Drive D:\ MUST be setup before you setup a Jenkins Slave, please contact ICS\ALM for further assistance
- pause 
- popd
- exit 1
-)
-REM -- Check D:\DEV exist or create it
-IF NOT EXIST D:\DEV MKDIR D:\DEV
-IF NOT EXIST D:\DEV\TEMP MKDIR D:\DEV\TEMP
-
-REM -- TimeStamp
-echo %date% - %TIME% > %ERRORLOG%
-
-REM ---------------------------------------------------------------------------------------------------------------
-REM  Check FW .NET v3.5
-REM ---------------------------------------------------------------------------------------------------------------
-
-echo ... Check Framework v3.5
-reg query "HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\NET Framework Setup\NDP" | find /C "v3.5" > NUL 2>> %ERRORLOG%
-IF %ERRORLEVEL% == 1 (
-  echo ... WARNING! Install .NET Framework V3.5 from Features of Server Manager, please contact ICS\ALM for further assistance.
-  echo ... WARNING! Install .NET Framework V3.5 from Features of Server Manager, please contact ICS\ALM for further assistance. >> %ERRORLOG%
-  pause
-  popd
-  exit 1
 )
 
 REM ---------------------------------------------------------------------------------------------------------------
@@ -99,9 +36,9 @@ IF NOT %ERRORLEVEL% == 0 (
   exit 1
 )
 
-reg query HKLM\SYSTEM\CurrentControlSet\Services\W32Time\Parameters | findstr /I "time.windows.com" >> %ERRORLOG% 2>&1
+reg query HKLM\SYSTEM\CurrentControlSet\Services\W32Time\Parameters | findstr /I "%NTP_SERVER%" >> %ERRORLOG% 2>>&1
+IF %ERRORLEVEL% == 1 reg add "HKLM\SYSTEM\CurrentControlSet\Services\W32Time\Parameters" /v NtpServer /t REG_SZ /d %NTP_SERVER% /f 2>> %ERRORLOG%
 IF %ERRORLEVEL% == 1 (
-  rem reg add "HKLM\SYSTEM\CurrentControlSet\Services\W32Time\Parameters" /v NtpServer /t REG_SZ /d time.windows.com /f 2>> %ERRORLOG% 
   echo ... WARNING! NTP time service is not configured, please contact ICS\ALM for further assistance.
   echo ... WARNING! NTP time service is not configured, please contact ICS\ALM for further assistance. >> %ERRORLOG%
   reg query HKLM\SYSTEM\CurrentControlSet\Services\W32Time\Parameters | findstr /I "NtpServer" >> %ERRORLOG% 
@@ -137,15 +74,17 @@ echo ... Install/Update Java JDK and mSysGit
 :JAVA
 echo ... Install Java JDK 1.8
 IF NOT EXIST %LOCAL_TOOLS%\JDK1.8 MKDIR %LOCAL_TOOLS%\JDK1.8\ 2> NUL
-XCOPY /E/I/Q/H/K/Y %MASTER_DRIVE%\INSTALL\jdk-8u51-windows-x64\*.* %LOCAL_TOOLS%\JDK1.8\
-REM %MASTER_DRIVE%\INSTALL\jdk-8u51-windows-x64.exe /s ADDLOCAL="ToolsFeature,SourceFeature" INSTALLDIR=%LOCAL_TOOLS%\JDK1.8 2>> %ERRORLOG%
+XCOPY /E/I/Q/H/K/Y %MASTER_DRIVE%\INSTALL\jdk-8u92-windows-x64\*.* %LOCAL_TOOLS%\JDK1.8\
+REM %MASTER_DRIVE%\INSTALL\jdk-8u92-windows-x64.exe /s ADDLOCAL="ToolsFeature,SourceFeature" INSTALLDIR=%LOCAL_TOOLS%\JDK1.8 2>> %ERRORLOG%
 SET JAVA_HOME=%LOCAL_TOOLS%\JDK1.8
-PATH %LOCAL_TOOLS%\JDK1.8\bin;%PATH%
+rem PATH %LOCAL_TOOLS%\JDK1.8\bin;%PATH%
+CALL %MASTER_DRIVE%\BIN\pathmgr.cmd /add /system %LOCAL_TOOLS%\JDK1.8\bin /v /y
 
-where java >> %ERRORLOG% 2>&1
+where java >> %ERRORLOG% 2>>&1
+%LOCAL_TOOLS%\JDK1.8\bin\java -version >> %ERRORLOG% 2>>&1
 IF %ERRORLEVEL% == 1 (
-  echo ... WARNING! Java is not installed, please contact ICS\ALM for further assistance.
-  echo ... WARNING! Java is not installed, please contact ICS\ALM for further assistance. >> %ERRORLOG%
+  echo ... WARNING! Java %LOCAL_TOOLS%\JDK1.8 is not installed, please contact ICS\ALM for further assistance.
+  echo ... WARNING! Java %LOCAL_TOOLS%\JDK1.8 is not installed, please contact ICS\ALM for further assistance. >> %ERRORLOG%
   pause
   popd
   exit 1
@@ -153,19 +92,20 @@ IF %ERRORLEVEL% == 1 (
 
 echo ... Setup Java security
 mkdir %WINDIR%\Sun\Java\Deployment 2> NUL
-XCOPY /E/I/Q/H/K/Y %MASTER_DRIVE%\INSTALL\java-config\*.* %WINDIR%\Sun\Java\Deployment
+XCOPY /E/I/Q/H/K/Y %MASTER_DRIVE%\CONFIG\java-config\*.* %WINDIR%\Sun\Java\Deployment
 
 :GIT
 echo ... Install mSysGit
 REM -- Setup LOCAL_TOOLS Path in configuration file
-XCOPY /Q/Y %MASTER_DRIVE%\INSTALL\Git.conf %LOCAL_TOOLS%
-cscript /nologo %MASTER_DRIVE%\BIN\replace.vbs "%LOCAL_TOOLS%\Git.conf" "@LOCALTOOLS@" "%LOCAL_TOOLS%" >> %ERRORLOG% 2>&1
+XCOPY /Q/Y %MASTER_DRIVE%\CONFIG\git\Git.conf %LOCAL_TOOLS%
+cscript /nologo %MASTER_DRIVE%\BIN\replace.vbs "%LOCAL_TOOLS%\Git.conf" "@LOCALTOOLS@" "%LOCAL_TOOLS%" >> %ERRORLOG% 2>>&1
 REM -- Start Silent install
-%MASTER_DRIVE%\INSTALL\Git-2.6.3-64-bit.exe /SILENT /SUPPRESSMSGBOXES /NORESTART /NORESTARTAPPLICATIONS /NOCLOSEAPPLICATIONS /LOADINF=%LOCAL_TOOLS%\Git.conf  2>> %ERRORLOG%
+%MASTER_DRIVE%\INSTALL\Git-2.9.2-64-bit.exe /SILENT /SUPPRESSMSGBOXES /NORESTART /NORESTARTAPPLICATIONS /NOCLOSEAPPLICATIONS /LOADINF=%LOCAL_TOOLS%\Git.conf  2>> %ERRORLOG%
 echo %ERRORLEVEL% >> %ERRORLOG%
-PATH %LOCAL_TOOLS%\Git-2.6.3\bin;%PATH%
+rem PATH %LOCAL_TOOLS%\Git-2.9.2\bin;%PATH%
+CALL %MASTER_DRIVE%\BIN\pathmgr.cmd /add /system %LOCAL_TOOLS%\Git-2.9.2\bin /v /y
 
-where git >> %ERRORLOG% 2>&1
+where git >> %ERRORLOG% 2>>&1
 IF %ERRORLEVEL% == 1 (
   echo ... WARNING! Git is not installed, please contact ICS\ALM for further assistance.
   echo ... WARNING! Git is not installed, please contact ICS\ALM for further assistance. >> %ERRORLOG%
@@ -180,7 +120,17 @@ REM ----------------------------------------------------------------------------
 
 echo ... Install/Update SVN Client
 :SVN
-%MASTER_DRIVE%\INSTALL\CollabNetSubversion-client-1.8.14-1-x64.exe /S /Answerfile=%MASTER_DRIVE%\INSTALL\collabnetSVN.conf /D=%LOCAL_TOOLS%\SVN_1.8 2>> %ERRORLOG%
+%MASTER_DRIVE%\INSTALL\CollabNetSubversion-client-1.8.14-1-x64.exe /S /Answerfile=%MASTER_DRIVE%\CONFIG\svn\collabnetSVN.conf /D=%LOCAL_TOOLS%\SVN_1.8 2>> %ERRORLOG%
+CALL %MASTER_DRIVE%\BIN\pathmgr.cmd /add /system %LOCAL_TOOLS%\SVN_1.8 /v /y
+
+REM ---------------------------------------------------------------------------------------------------------------
+REM  Install FireFox client 
+REM ---------------------------------------------------------------------------------------------------------------
+
+echo ... Install FireFox client for GUI testing
+XCOPY /Q/Y %MASTER_DRIVE%\CONFIG\firefox\firefox.ini %LOCAL_TOOLS%
+cscript /nologo %MASTER_DRIVE%\BIN\replace.vbs "%LOCAL_TOOLS%\firefox.ini" "@LOCALTOOLS@" "%LOCAL_TOOLS%" >> %ERRORLOG% 2>>&1
+%MASTER_DRIVE%\INSTALL\"Firefox Setup 45.0.1.exe" /INI="%LOCAL_TOOLS%\firefox.ini" >> %ERRORLOG% 2>>&1
 
 REM ---------------------------------------------------------------------------------------------------------------
 REM  Use GIT to Deploy JENKINS Client and Tooling
@@ -188,14 +138,45 @@ REM ----------------------------------------------------------------------------
 
 REM -- Clone GIT Slave Repo or Pull it
 cd /D D:\DEV
-IF NOT EXIST %SLAVE_HOME% (
+IF EXIST %SLAVE_FOLDER% IF NOT EXIST %SLAVE_FOLDER%\.git IF EXIST %SLAVE_FOLDER%\WS (
+  echo ... Install Jenkins Slave Tooling
+  echo WARNING : Can't install the Slave tooling, the Git repo is missing and a Worspace is already setup. 
+  echo           Please move/save the Worskspace manually, delete %SLAVE_FOLDER% and restart installation. 
+  echo WARNING : Can't install the Slave tooling, the Git repo is missing and a Worspace is already setup. >> %ERRORLOG%
+  echo           Please move/save the Worskspace manually, delete %SLAVE_FOLDER% and restart installation. >> %ERRORLOG%
+  pause
+  popd
+  exit 1  
+)
+IF EXIST %SLAVE_FOLDER% IF NOT EXIST %SLAVE_FOLDER%\.git (
+  echo ... Clean Slave %SLAVE_FOLDER% folder
+  DEL /S/Q  %SLAVE_FOLDER%
+)
+IF NOT EXIST %SLAVE_FOLDER% (
   echo ... Install Jenkins Slave Tools from Git Repo
-  git clone %GIT_REPO% %SLAVE_FOLDER% 2>> %ERRORLOG%
+  REM git config http.postBuffer 524288000 2>> %ERRORLOG%
+  git clone --progress --depth 1 %GIT_REPO% %SLAVE_FOLDER%
+  SET GITERROR=%ERRORLEVEL%
+  echo ErrorLevel Git = !GITERROR!%GITERROR% >> %ERRORLOG%
 ) ELSE (
   echo ... Update Jenkins Slave Tools from Git Repo
   cd /D %SLAVE_HOME%
-  git status >> %ERRORLOG%
+  git config --get remote.origin.url 2>> %ERRORLOG%
+  git status 2>> %ERRORLOG%
+  git reset --hard HEAD 2>> %ERRORLOG%
+  git clean -f -d 2>> %ERRORLOG%
   git pull
+  SET GITERROR=%ERRORLEVEL%
+  echo ErrorLevel Git = !GITERROR!%GITERROR% >> %ERRORLOG%
+  echo ... Updated!  
+)
+IF NOT !GITERROR! == 0 (
+  echo WARNING : Can't install the Slave tooling, Git returned an error code !GITERROR!. >> %ERRORLOG%
+  echo WARNING : Can't install the Slave tooling, Git returned an error code !GITERROR!.
+  echo           Please check the log file %ERRORLOG%.
+  pause
+  popd
+  exit 1  
 )
 
 REM ---------------------------------------------------------------------------------------------------------------
@@ -228,7 +209,7 @@ REM  Grant all rights on SLAVE_HOME to EveryOne
 REM ---------------------------------------------------------------------------------------------------------------
 
 echo ... Grant all rights on SLAVE_HOME to EveryOne
-cacls %SLAVE_HOME% /t /e /g Everyone:f > NUL 2> %ERRORLOG%
+cacls %SLAVE_HOME% /t /e /g Everyone:f > NUL 2>> %ERRORLOG%
 
 REM ---------------------------------------------------------------------------------------------------------------
 REM  Link Slave to MASTER and Deploy/start service
@@ -238,7 +219,7 @@ REM ----------------------------------------------------------------------------
 echo ... Copy Slave files from Master
 XCOPY /E/I/Q/H/K/Y %MASTER_DRIVE%\SLAVE\*.* %SLAVE_HOME%
 rem -- Configure XML Slave file
-cscript /nologo %MASTER_DRIVE%\BIN\replace.vbs "%SLAVE_HOME%\jenkins-slave.xml" "@JAVA@" "%LOCAL_TOOLS%\JAVA\JDK1.8\bin\java.exe" >> %ERRORLOG% 2>&1
+cscript /nologo %MASTER_DRIVE%\BIN\replace.vbs "%SLAVE_HOME%\jenkins-slave.xml" "@JAVA@" "%LOCAL_TOOLS%\JDK1.8\bin\java.exe" >> %ERRORLOG% 2>&1
 cscript /nologo %MASTER_DRIVE%\BIN\replace.vbs "%SLAVE_HOME%\jenkins-slave.xml" "@JNLP@" "http://%MASTER%/computer/%SLAVE_NAME%/slave-agent.jnlp" >> %ERRORLOG% 2>&1
 
 %SLAVE_HOME%\jenkins-slave.exe install 
@@ -247,11 +228,11 @@ echo ... Setup Jenkins as a service and setup service
 rem -- set user bob and depdancy as Server service (make sure we have network!)
 call :inputbox "Please enter your Windows password : " "Jenkins service configuration"
 sc config %SERVICE_NAME% start= auto obj= "%USERDOMAIN%\%USERNAME%" password= "%input%" depend= LanmanServer
-rem -- set restart service configuration in case of problem (reset time = 1day) (Restart = 1mn/5mn Reboot = 1h)
-sc failure %SERVICE_NAME% reset= 43200 actions= restart/60/restart/300/restart/3600
+rem -- set restart service configuration in case of problem (reset time = 1day) (Restart = 1mn/5mn/20mn)
+sc failure %SERVICE_NAME% reset= 43200 actions= restart/60/restart/300/restart/1200
 
 REM echo ... Add bob to Admin group
-REM net localgroup Administrators BE\bob /add 2> NUL
+REM net localgroup Administrators %SLAVE_USER% /add 2> NUL
 
 REM -- Start new service
 echo ... Start Jenkins service
@@ -272,18 +253,6 @@ echo wscript.echo inputbox(WScript.Arguments(0),WScript.Arguments(1)) >"%temp%\i
 for /f "tokens=* delims=" %%a in ('cscript //nologo "%temp%\input.vbs" "%message%" "%heading%"') do set input=%%a
 exit /b
 
-REM ---------------------------------------------------------------------------------------------------------------
-REM  END : Display logs
-REM ---------------------------------------------------------------------------------------------------------------
-
-:DONOTHING
 :END
-echo logs are on %ERRORLOG%
-echo ... OK : Slave installed and started!
-popd
-echo END - %TIME% >> %ERRORLOG%
-pause
-REM start notepad %ERRORLOG%
-
 REM EOF
 REM ---------------------------------------------------------------------------------------------------------------
